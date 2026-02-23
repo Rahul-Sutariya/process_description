@@ -62,6 +62,87 @@ To fulfill the demands of the work product :need:`wp__verification_plan` the
 templates in :ref:`verification_process_reqs` shall be used and the :need:`gd_guidl__verification_specification`
 should be followed . This includes general information and templates for the allowed programming languages.
 
+Test Implementation Best Practices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following best practices provide guidance for writing high-quality, maintainable tests. These are
+recommendations that can be deviated from when there is a good reason, such as improved readability or
+reduced complexity for a specific case.
+
+**Test Naming**
+
+Test names should be descriptive and clearly indicate what is being tested. Naming conventions:
+
+- Use a consistent naming style (e.g., PascalCase for C++/Rust, snake_case for Python)
+- Test suite names should indicate the unit under test
+- Test names should describe the scenario being tested (see :need:`gd_guidl__verification_specification` for structure guidance)
+- Death tests (tests expecting termination) should be clearly identifiable by naming convention
+  (see `Death Tests and Threads <https://github.com/google/googletest/blob/main/docs/advanced.md#death-tests-and-threads>`_)
+
+Example naming patterns:
+
+.. code-block:: text
+
+   // C++ (GoogleTest)
+   TEST(RuntimeWithInvalidConfigTest, WhenCallingInitThenAnErrorIsReturned)
+
+   # Python (pytest)
+   def test_runtime_with_invalid_config_returns_error():
+
+   // Rust
+   #[test]
+   fn runtime_with_invalid_config_returns_error()
+
+**Test Content Guidelines**
+
+Each test should verify a single functionality:
+
+- One function call with specific setup returning a particular value
+- One function call with specific setup calling a mock function with expected arguments
+- One function call with specific setup causing expected termination (death test)
+
+Each test should have a single *semantic* assertion or expectation. Multiple related assertions are
+acceptable when they verify a single logical outcome (e.g., checking both that a result has an error
+and what that error code is).
+
+**Test Constants and Data**
+
+- If the specific value of a constant is relevant to the test being verified, define it within the test
+- If the value is not relevant (just needs to be valid), use a shared constant or fixture
+- Avoid using literals directly in assertions; use named constants for clarity
+- Avoid global constant objects that use globals in their implementation to prevent
+  `Static Initialization Order Fiasco <https://en.cppreference.com/w/cpp/language/siof.html>`_
+
+**Test Fixtures and Setup**
+
+- Keep fixtures focused and minimal; large fixtures may indicate poor architectural design
+- Place fixture definitions close to the tests that use them
+- Avoid deep inheritance hierarchies in fixtures
+- Consider using a builder pattern for complex setup that needs to be configurable per test
+  (see `ServiceDiscoveryClientFixture <https://github.com/eclipse-score/communication/blob/main/score/mw/com/impl/bindings/lola/service_discovery/test/service_discovery_client_test_fixtures.h>`_
+  for an example implementation)
+
+**Test File Organization**
+
+- Group tests logically, typically one test file per unit under test
+- When a test file becomes too large, split based on functionality being tested, not arbitrarily
+  (see `service_discovery/client <https://github.com/eclipse-score/communication/tree/main/score/mw/com/impl/bindings/lola/service_discovery/client>`_
+  for an example of splitting tests by feature)
+- Maintain one test target per production code target in the build system for faster iteration
+
+**Mocking Best Practices**
+
+When using mock objects (see `Setting Expectations <https://google.github.io/googletest/gmock_cook_book.html#setting-expectations>`_
+for GoogleMock details):
+
+- Use mock defaults (e.g., ``ON_CALL`` in GoogleMock) for behavior that applies to most tests in a fixture
+- Use explicit expectations (e.g., ``EXPECT_CALL``) only when the mock interaction is what you are testing
+- When testing interfaces that require ownership transfer (e.g., ``unique_ptr``), consider using a
+  facade pattern (see `InotifyInstanceFacade <https://github.com/eclipse-score/baselibs/blob/main/score/os/utils/inotify/inotify_instance_facade.h>`_
+  for an example) or setting expectations before transferring ownership
+- For complex assertions on mock parameters, consider using
+  `custom matchers <https://google.github.io/googletest/reference/matchers.html#defining-matchers>`_
+
 
 Verify Requirements Execution Work Flow
 ---------------------------------------
